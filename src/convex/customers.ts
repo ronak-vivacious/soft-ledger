@@ -130,3 +130,33 @@ export const update = mutation({
     await ctx.db.patch(customerId, fields);
   },
 });
+
+// Let a signed-in user register themselves as a customer of a business
+export const linkToBusiness = mutation({
+  args: {
+    businessId: v.id("businesses"),
+    name: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+
+    // Check if already linked to any business
+    const existing = await ctx.db
+      .query("customers")
+      .withIndex("by_linked_user", (q) => q.eq("linkedUserId", userId))
+      .first();
+    if (existing) throw new Error("You are already connected to a business.");
+
+    const id = await ctx.db.insert("customers", {
+      businessId: args.businessId,
+      name: args.name,
+      linkedUserId: userId,
+    });
+
+    // Update user role
+    await ctx.db.patch(userId, { role: "customer" });
+
+    return id;
+  },
+});

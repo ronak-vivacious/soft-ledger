@@ -57,13 +57,9 @@ export default function Landing() {
                 Get started — it&apos;s free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
-              <Button
-                onClick={() => navigate("/auth?returnTo=/dashboard")}
-                variant="ghost"
-                className="h-12 rounded-2xl text-sm text-muted-foreground"
-              >
-                I&apos;m here as a customer
-              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                Business owner or customer — you&apos;ll choose on the next screen
+              </p>
             </div>
           </motion.div>
         </div>

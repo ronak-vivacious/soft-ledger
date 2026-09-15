@@ -59,3 +59,16 @@ export const getByUser = query({
       .first();
   },
 });
+
+// Search businesses by name (for customers looking to connect)
+export const searchByName = query({
+  args: { name: v.string() },
+  handler: async (ctx, args) => {
+    const all = await ctx.db.query("businesses").collect();
+    const query = args.name.toLowerCase().trim();
+    return all
+      .filter((b) => b.name.toLowerCase().includes(query))
+      .map((b) => ({ _id: b._id, name: b.name }))
+      .slice(0, 10);
+  },
+});
