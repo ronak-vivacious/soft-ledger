@@ -7,15 +7,12 @@ import { useNavigate } from "react-router";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
-// Simple QR code as an SVG pattern for demo
 function QRCode({ value }: { value: string }) {
-  // Generate a deterministic pattern from the code
   const size = 21;
   const cells: boolean[][] = [];
   for (let row = 0; row < size; row++) {
     cells[row] = [];
     for (let col = 0; col < size; col++) {
-      // Position detection patterns (corners)
       if (
         (row < 7 && col < 7) ||
         (row < 7 && col >= size - 7) ||
@@ -41,7 +38,6 @@ function QRCode({ value }: { value: string }) {
                 (row >= size - 5 && row <= size - 3 && col >= 2 && col <= 4);
         cells[row][col] = inBorder;
       } else {
-        // Data pattern from code hash
         const charCode = value.charCodeAt(row * size + col) || 0;
         cells[row][col] = (charCode + row * 7 + col * 13) % 3 === 0;
       }
@@ -97,7 +93,6 @@ export default function InvitePage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback
       const textArea = document.createElement("textarea");
       textArea.value = inviteLink;
       document.body.appendChild(textArea);
@@ -122,7 +117,6 @@ export default function InvitePage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="mx-auto max-w-lg px-4">
-        {/* Header */}
         <div className="flex items-center gap-3 pt-4 pb-2">
           <button
             onClick={() => navigate(-1)}
@@ -148,12 +142,11 @@ export default function InvitePage() {
           </Card>
 
           <p className="text-sm text-muted-foreground">
-            Scan this QR code to connect
+            Have them scan this to get connected
           </p>
 
           <p className="text-sm text-muted-foreground">or</p>
 
-          {/* Copy Link Button */}
           <button
             onClick={handleCopy}
             className="flex items-center gap-2 px-6 py-3 rounded-full bg-primary/10 text-primary font-medium text-sm hover:bg-primary/15 active:scale-95 transition-all"
@@ -161,17 +154,16 @@ export default function InvitePage() {
             {copied ? (
               <>
                 <Check className="h-4 w-4" />
-                Copied!
+                Copied to clipboard!
               </>
             ) : (
               <>
                 <Copy className="h-4 w-4" />
-                Copy invite link
+                Copy the invite link
               </>
             )}
           </button>
 
-          {/* Invite Code Display */}
           <div className="bg-muted rounded-2xl px-5 py-3 text-center">
             <p className="text-xs text-muted-foreground mb-1">Invite code</p>
             <p className="text-lg font-mono font-bold tracking-widest">

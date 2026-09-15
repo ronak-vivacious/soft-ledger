@@ -4,19 +4,16 @@ import { AppShell } from "@/components/app/AppShell";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router";
 import {
-  Store,
   LogOut,
   QrCode,
   Users,
   Info,
 } from "lucide-react";
-import { SkeletonCard } from "@/components/app/SkeletonCard";
 
 export default function More() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const business = useQuery(api.businesses.getByUser);
-  const customer = useQuery(api.customers.getByLinkedUser);
   const isVendor = !!business;
 
   const handleSignOut = async () => {
@@ -37,8 +34,8 @@ export default function More() {
             </div>
             <div>
               <p className="font-semibold text-base">{user?.name || "Guest"}</p>
-              <p className="text-sm text-muted-foreground capitalize">
-                {isVendor ? "Vendor" : "Customer"}
+              <p className="text-sm text-muted-foreground">
+                {isVendor ? "Business owner" : "Customer"}
               </p>
             </div>
           </div>
@@ -57,7 +54,7 @@ export default function More() {
               <div className="text-left flex-1">
                 <p className="text-sm font-medium">Invite customers</p>
                 <p className="text-xs text-muted-foreground">
-                  Share QR code or link
+                  Share a QR code or link
                 </p>
               </div>
             </button>
@@ -85,7 +82,7 @@ export default function More() {
               <Info className="h-4.5 w-4.5 text-teal" />
             </div>
             <div className="text-left flex-1">
-              <p className="text-sm font-medium">About</p>
+              <p className="text-sm font-medium">About Soft Ledger</p>
               <p className="text-xs text-muted-foreground">
                 Version 1.0 · Made with ❤️
               </p>

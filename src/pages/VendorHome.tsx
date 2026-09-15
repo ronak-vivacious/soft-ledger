@@ -2,7 +2,6 @@ import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { AppShell } from "@/components/app/AppShell";
 import { Money, formatMoney } from "@/components/app/MoneyDisplay";
-import { StatusBadge, getPaymentStatus } from "@/components/app/StatusBadge";
 import { SkeletonCard } from "@/components/app/SkeletonCard";
 import { EmptyState } from "@/components/app/EmptyState";
 import { getGreeting, getToday } from "@/components/app/timeAgo";
@@ -50,10 +49,10 @@ export default function VendorHome() {
         {/* Greeting */}
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            {greeting} 👋
+            {greeting}, {firstName} 👋
           </h1>
           <p className="text-muted-foreground mt-1">
-            {business.name} · Your business today
+            Here&apos;s how {business.name} is doing today
           </p>
         </div>
 
@@ -62,7 +61,7 @@ export default function VendorHome() {
           <Card className="border-border/30 soft-shadow-md bg-gradient-to-br from-primary/5 to-teal-light/30">
             <CardContent className="p-6">
               <p className="text-sm font-medium text-muted-foreground mb-3">
-                Today&apos;s activity
+                Today at a glance
               </p>
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
@@ -88,7 +87,7 @@ export default function VendorHome() {
                     {todaySummary.totalQuantity}
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    litres
+                    units
                   </p>
                 </div>
                 <div className="text-center">
@@ -102,7 +101,9 @@ export default function VendorHome() {
                     size="lg"
                     className="block text-center"
                   />
-                  <p className="text-xs text-muted-foreground mt-0.5">today</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    earned
+                  </p>
                 </div>
               </div>
             </CardContent>
@@ -118,7 +119,7 @@ export default function VendorHome() {
             className="w-full bg-card rounded-2xl p-5 soft-shadow border border-border/30 flex items-center justify-between hover:border-primary/20 transition-all active:scale-[0.99]"
           >
             <div>
-              <p className="text-sm text-muted-foreground">Outstanding</p>
+              <p className="text-sm text-muted-foreground">Still owed</p>
               <Money amount={outstanding} size="lg" className="text-error" />
             </div>
             <ArrowRight className="h-5 w-5 text-muted-foreground" />
@@ -128,12 +129,12 @@ export default function VendorHome() {
         {/* Recent Activity */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-semibold">Recent activity</h2>
+            <h2 className="text-lg font-semibold">Recent orders</h2>
             <button
               onClick={() => navigate("/dashboard/activity")}
               className="text-sm text-primary font-medium hover:underline"
             >
-              View all
+              See all
             </button>
           </div>
 
@@ -157,9 +158,9 @@ export default function VendorHome() {
             </div>
           ) : recentActivity.length === 0 ? (
             <EmptyState
-              icon="🥛"
-              title="No deliveries yet today"
-              description="Record your first delivery to see activity here."
+              icon="📝"
+              title="No orders yet today"
+              description="When you start logging orders, they'll show up right here."
             />
           ) : (
             <div className="space-y-2">

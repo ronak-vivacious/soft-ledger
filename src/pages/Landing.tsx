@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router";
 import { useAuth } from "@/hooks/use-auth";
-import { ArrowRight, Milk, Users, IndianRupee, Shield, Smartphone, Zap } from "lucide-react";
+import { ArrowRight, BookOpen, Users, IndianRupee, Shield, Smartphone, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useEffect } from "react";
@@ -31,22 +31,22 @@ export default function Landing() {
             {/* Logo/Brand */}
             <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full soft-shadow mb-8">
               <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Milk className="h-4.5 w-4.5 text-primary" />
+                <BookOpen className="h-4.5 w-4.5 text-primary" />
               </div>
               <span className="font-semibold text-sm text-foreground">
-                MilkBook
+                Soft Ledger
               </span>
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-bold text-foreground leading-tight tracking-tight">
-              Your diary,
+              Bookkeeping,
               <br />
-              <span className="text-primary">but beautiful</span>
+              <span className="text-primary">without the headache</span>
             </h1>
 
             <p className="text-lg text-muted-foreground mt-6 leading-relaxed max-w-sm mx-auto">
-              The simplest way for milk and tea vendors to track deliveries,
-              payments, and customers.
+              A friendly way for businesses of all kinds to track orders,
+              payments, and customers — all in one place.
             </p>
 
             <div className="flex flex-col gap-3 mt-8 max-w-xs mx-auto">
@@ -54,7 +54,7 @@ export default function Landing() {
                 onClick={() => navigate("/auth?returnTo=/dashboard")}
                 className="h-14 rounded-2xl text-base font-semibold bg-primary hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20"
               >
-                Get started
+                Get started — it&apos;s free
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
               <Button
@@ -62,7 +62,7 @@ export default function Landing() {
                 variant="ghost"
                 className="h-12 rounded-2xl text-sm text-muted-foreground"
               >
-                I&apos;m a customer
+                I&apos;m here as a customer
               </Button>
             </div>
           </motion.div>
@@ -77,10 +77,10 @@ export default function Landing() {
           transition={{ duration: 0.5, delay: 0.2 }}
         >
           <h2 className="text-2xl font-bold text-center mb-2">
-            Built for vendors like you
+            Why businesses love Soft Ledger
           </h2>
           <p className="text-muted-foreground text-center mb-10">
-            No more paper diaries. No complicated software.
+            No spreadsheets. No complicated software. Just the good stuff.
           </p>
         </motion.div>
 
@@ -88,30 +88,30 @@ export default function Landing() {
           {[
             {
               icon: Zap,
-              title: "One-tap recording",
+              title: "One-tap record keeping",
               description:
-                "Record a delivery in one tap. No forms, no fuss.",
+                "Log an order in a single tap — no clunky forms or confusing menus.",
               color: "bg-primary/10 text-primary",
             },
             {
               icon: IndianRupee,
-              title: "Clear finances",
+              title: "Crystal-clear finances",
               description:
-                "See exactly who paid, who owes, and your daily totals.",
+                "See who's paid, who owes, and what your day looks like at a glance.",
               color: "bg-success-light text-success",
             },
             {
               icon: Users,
-              title: "Your customers stay informed",
+              title: "Keep your customers in the loop",
               description:
-                "Customers see the same records as you. Trust, built in.",
+                "Your customers see the same records you do — less confusion, more trust.",
               color: "bg-lavender/30 text-lavender",
             },
             {
               icon: Smartphone,
-              title: "Works on any phone",
+              title: "Works beautifully on any device",
               description:
-                "No app to install. Works beautifully on any browser.",
+                "No app to install. Just open it in your browser and you're good to go.",
               color: "bg-peach/30 text-peach",
             },
           ].map((feature, i) => (
@@ -157,11 +157,11 @@ export default function Landing() {
             ))}
           </div>
           <p className="text-foreground font-medium italic leading-relaxed">
-            &ldquo;I stopped using my diary on day one. This is so much
-            easier.&rdquo;
+            &ldquo;I switched from my old notebook and never looked back.
+            This is so much easier to keep up with.&rdquo;
           </p>
           <p className="text-sm text-muted-foreground mt-3">
-            — Local milk vendor, Ahmedabad
+            — A happy small-business owner
           </p>
         </motion.div>
       </div>
@@ -175,16 +175,16 @@ export default function Landing() {
           className="text-center"
         >
           <h2 className="text-2xl font-bold mb-3">
-            Start in 30 seconds
+            Set up in about 30 seconds
           </h2>
           <p className="text-muted-foreground mb-8">
-            Free to use. No credit card needed.
+            Totally free. No credit card required.
           </p>
           <Button
             onClick={() => navigate("/auth?returnTo=/dashboard")}
             className="h-14 rounded-2xl text-base font-semibold bg-primary hover:bg-primary/90 active:scale-[0.98] transition-all shadow-lg shadow-primary/20 px-10"
           >
-            Open MilkBook
+            Open Soft Ledger
             <ArrowRight className="ml-2 h-5 w-5" />
           </Button>
         </motion.div>
@@ -193,7 +193,7 @@ export default function Landing() {
       {/* Footer */}
       <footer className="border-t border-border/50 py-6 text-center">
         <p className="text-xs text-muted-foreground">
-          Made with ❤️ for local vendors
+          Made with ❤️ for small businesses everywhere
         </p>
       </footer>
     </div>

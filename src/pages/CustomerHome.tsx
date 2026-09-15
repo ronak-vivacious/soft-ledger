@@ -55,7 +55,7 @@ export default function CustomerHome() {
             {greeting}, {firstName} 👋
           </h1>
           <p className="text-muted-foreground mt-1">
-            {businessName?.name || "Your"} · {getMonthName(yearMonth)}
+            {businessName?.name || "Your business"} · {getMonthName(yearMonth)}
           </p>
         </div>
 
@@ -64,7 +64,7 @@ export default function CustomerHome() {
           <Card className="border-border/30 soft-shadow-md bg-gradient-to-br from-primary/5 to-teal-light/30">
             <CardContent className="p-6 text-center">
               <Money amount={summary.totalBilled} size="xl" className="block" />
-              <p className="text-sm text-muted-foreground mt-1">Total</p>
+              <p className="text-sm text-muted-foreground mt-1">Total this month</p>
               <div className="flex justify-center gap-8 mt-4">
                 <div>
                   <p className="text-xs text-muted-foreground">Paid</p>
@@ -92,7 +92,7 @@ export default function CustomerHome() {
         {/* Product Breakdown */}
         {summary && summary.products.length > 0 && (
           <div className="space-y-3">
-            <h2 className="text-lg font-semibold">Your activity</h2>
+            <h2 className="text-lg font-semibold">What you got this month</h2>
             {summary.products.map((p) => (
               <div
                 key={p.name}
@@ -100,17 +100,11 @@ export default function CustomerHome() {
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">
-                      {p.name === "Milk"
-                        ? "🥛"
-                        : p.name === "Tea"
-                          ? "☕"
-                          : "📦"}
-                    </span>
+                    <span className="text-2xl">📦</span>
                     <div>
                       <p className="font-medium">{p.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {p.quantity} {p.name === "Milk" ? "litres" : "cups"}
+                        {p.quantity} units
                       </p>
                     </div>
                   </div>
@@ -127,7 +121,7 @@ export default function CustomerHome() {
             onClick={() => navigate("/dashboard/activity")}
             className="w-full bg-card rounded-2xl p-4 soft-shadow border border-border/20 flex items-center justify-between hover:border-primary/20 transition-all active:scale-[0.99]"
           >
-            <span className="text-sm font-medium">View full history</span>
+            <span className="text-sm font-medium">See full history</span>
             <ArrowRight className="h-5 w-5 text-muted-foreground" />
           </button>
         )}
@@ -135,8 +129,8 @@ export default function CustomerHome() {
         {summary && summary.products.length === 0 && (
           <EmptyState
             icon="📦"
-            title="No deliveries yet"
-            description="Your deliveries will appear here once your vendor records them."
+            title="Nothing recorded yet"
+            description="Once your business logs some orders, they'll pop up here for you to browse."
           />
         )}
       </div>

@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { Milk, ArrowRight, Loader2, Mail, UserX } from "lucide-react";
+import { BookOpen, ArrowRight, Loader2, Mail, UserX } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -65,7 +65,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setError(
         error instanceof Error
           ? error.message
-          : "Failed to send verification code. Please try again.",
+          : "Couldn't send the verification code. Give it another try.",
       );
       setIsLoading(false);
     }
@@ -81,7 +81,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
-      setError("The verification code you entered is incorrect.");
+      setError("That code didn't work. Mind checking and trying again?");
       setIsLoading(false);
       setOtp("");
     }
@@ -98,7 +98,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
       setError(
         error instanceof Error
           ? error.message
-          : "Failed to sign in as guest.",
+          : "Something went wrong with guest access. Please try again.",
       );
       setIsLoading(false);
     }
@@ -111,9 +111,9 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           {/* Brand */}
           <div className="flex items-center gap-2 mb-8">
             <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Milk className="h-5 w-5 text-primary" />
+              <BookOpen className="h-5 w-5 text-primary" />
             </div>
-            <span className="font-semibold text-lg">MilkBook</span>
+            <span className="font-semibold text-lg">Soft Ledger</span>
           </div>
 
           <Card className="w-full border-border/30 soft-shadow-md">
@@ -121,10 +121,10 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               <>
                 <CardHeader className="text-center pb-2">
                   <CardTitle className="text-xl font-semibold">
-                    Welcome back
+                    Welcome!
                   </CardTitle>
                   <CardDescription>
-                    Enter your email to continue
+                    Drop in your email and we&apos;ll get you set up
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleEmailSubmit}>
@@ -177,7 +177,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       disabled={isLoading}
                     >
                       <UserX className="mr-2 h-4 w-4" />
-                      Try without account
+                      Jump in without an account
                     </Button>
                   </CardContent>
                 </form>
@@ -186,7 +186,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               <>
                 <CardHeader className="text-center pb-2">
                   <CardTitle className="text-xl font-semibold">
-                    Check your email
+                    Check your inbox
                   </CardTitle>
                   <CardDescription>
                     We sent a code to <span className="font-medium text-foreground">{step.email}</span>
@@ -231,13 +231,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       </p>
                     )}
                     <p className="text-sm text-muted-foreground text-center mt-4">
-                      Didn&apos;t receive a code?{" "}
+                      Didn&apos;t get a code?{" "}
                       <Button
                         variant="link"
                         className="p-0 h-auto text-primary"
                         onClick={() => setStep("signIn")}
                       >
-                        Try again
+                        Try a different email
                       </Button>
                     </p>
                   </CardContent>
@@ -250,11 +250,11 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       {isLoading ? (
                         <>
                           <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Verifying...
+                          Checking...
                         </>
                       ) : (
                         <>
-                          Verify
+                          Let&apos;s go
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </>
                       )}
@@ -266,7 +266,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                       disabled={isLoading}
                       className="w-full text-muted-foreground"
                     >
-                      Use different email
+                      Use a different email
                     </Button>
                   </CardFooter>
                 </form>

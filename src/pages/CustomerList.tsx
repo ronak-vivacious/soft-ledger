@@ -178,7 +178,7 @@ export default function CustomerList() {
                         }}
                         className="px-3 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/15 active:scale-95 transition-all"
                       >
-                        +1L
+                        +1
                       </button>
                     </div>
                   </div>

@@ -24,18 +24,12 @@ export const create = mutation({
       phone: args.phone,
     });
 
-    // Create default products
+    // Create a starter product (the owner can add more later)
     await ctx.db.insert("products", {
       businessId: id,
-      name: "Milk",
-      unit: "Litre",
-      price: 6000, // ₹60 in paise
-    });
-    await ctx.db.insert("products", {
-      businessId: id,
-      name: "Tea",
-      unit: "Cup",
-      price: 1600, // ₹16 in paise
+      name: "Item",
+      unit: "Unit",
+      price: 1000, // ₹10 in paise — a placeholder rate
     });
 
     // Create default connection
@@ -46,7 +40,7 @@ export const create = mutation({
       status: "pending",
     });
 
-    // Update user role
+    // Mark the user as a business owner
     await ctx.db.patch(userId, { role: "vendor" });
 
     return id;

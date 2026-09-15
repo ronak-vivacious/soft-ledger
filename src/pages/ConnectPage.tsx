@@ -54,15 +54,16 @@ export default function ConnectPage() {
         <div className="h-16 w-16 rounded-full bg-success-light flex items-center justify-center mb-4">
           <Check className="h-8 w-8 text-success" />
         </div>
-        <h1 className="text-2xl font-bold mb-2">Connected!</h1>
+        <h1 className="text-2xl font-bold mb-2">You&apos;re all set!</h1>
         <p className="text-muted-foreground text-center mb-8">
-          You&apos;re now connected to {business?.name || "the vendor"}
+          You&apos;re now connected to {business?.name || "the business"}.
+          Enjoy Soft Ledger!
         </p>
         <Button
           onClick={() => navigate("/dashboard")}
           className="h-12 rounded-2xl px-8 bg-primary font-semibold"
         >
-          Go to home
+          Head to home
         </Button>
       </div>
     );
@@ -71,9 +72,10 @@ export default function ConnectPage() {
   if (!connection) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
-        <h1 className="text-2xl font-bold mb-2">Invalid code</h1>
+        <h1 className="text-2xl font-bold mb-2">Oops, that link is invalid</h1>
         <p className="text-muted-foreground text-center">
-          This invite code is not valid or has already been used.
+          This invite link doesn&apos;t seem to work anymore.
+          Ask the business to send you a fresh one!
         </p>
       </div>
     );
@@ -86,7 +88,7 @@ export default function ConnectPage() {
       setConnected(true);
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : "Could not connect. Please try again.",
+        err instanceof Error ? err.message : "Couldn't connect. Give it another shot.",
       );
       setConnecting(false);
     }
@@ -95,9 +97,9 @@ export default function ConnectPage() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
       <div className="text-center">
-        <p className="text-sm text-muted-foreground">Connect with</p>
+        <p className="text-sm text-muted-foreground">You&apos;ve been invited to connect with</p>
         <h1 className="text-3xl font-bold mt-1 mb-6">
-          {connection.businessId ? "Vendor" : "Business"}
+          {connection.businessId ? "a business" : "a business"}
         </h1>
 
         <Button
@@ -108,7 +110,7 @@ export default function ConnectPage() {
           {connecting ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
-            "Connect now"
+            "Connect and get started"
           )}
         </Button>
       </div>

@@ -164,16 +164,12 @@ export default function CustomerDetail() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <span className="text-2xl">
-                          {p.name === "Milk"
-                            ? "🥛"
-                            : p.name === "Tea"
-                              ? "☕"
-                              : "📦"}
+                          📦
                         </span>
                         <div>
                           <p className="font-medium">{p.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {p.quantity} {p.name === "Milk" ? "litres" : "cups"}
+                            {p.quantity} units
                           </p>
                         </div>
                       </div>

@@ -4,7 +4,7 @@ import { api } from "@/convex/_generated/api";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Store, ArrowRight } from "lucide-react";
+import { Building2, ArrowRight } from "lucide-react";
 
 export default function Onboarding() {
   const { user } = useAuth();
@@ -35,15 +35,15 @@ export default function Onboarding() {
           {/* Icon */}
           <div className="flex justify-center mb-6">
             <div className="h-20 w-20 rounded-3xl bg-primary/10 flex items-center justify-center">
-              <Store className="h-10 w-10 text-primary" />
+              <Building2 className="h-10 w-10 text-primary" />
             </div>
           </div>
 
           <h1 className="text-2xl font-bold text-center mb-2">
-            Set up your business
+            What&apos;s your business called?
           </h1>
           <p className="text-muted-foreground text-center mb-8">
-            Tell us your business name to get started
+            This is how your customers will see you in Soft Ledger.
           </p>
 
           <div className="space-y-4">
@@ -55,7 +55,7 @@ export default function Onboarding() {
                 type="text"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                placeholder="e.g. Shree Milk, Amul Dairy"
+                placeholder="e.g. Sunrise Dairy, Galaxy Traders"
                 className="w-full px-4 py-3.5 bg-card rounded-2xl border border-border/50 text-base outline-none focus:ring-2 focus:ring-primary/30 transition-all"
                 autoFocus
               />
@@ -80,10 +80,10 @@ export default function Onboarding() {
               className="w-full h-14 rounded-2xl text-base font-semibold bg-primary hover:bg-primary/90 active:scale-[0.98] transition-all mt-6"
             >
               {saving ? (
-                <span className="animate-pulse">Setting up...</span>
+                <span className="animate-pulse">Setting things up...</span>
               ) : (
                 <>
-                  Get started
+                  Let&apos;s go
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               )}
