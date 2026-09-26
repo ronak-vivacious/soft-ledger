@@ -2,8 +2,6 @@ import "@vly-ai/integrations";
 import { Toaster } from "@/components/ui/sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import { VlyToolbar } from "../vly-toolbar-readonly.tsx";
-import { ConvexAuthProvider } from "@convex-dev/auth/react";
-import { ConvexReactClient } from "convex/react";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
@@ -15,6 +13,37 @@ const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const ConnectPage = lazy(() => import("./pages/ConnectPage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+
+const PAGE_TITLES: Record<string, { title: string; noindex: boolean }> = {
+  "/": {
+    title: "Soft Ledger — Digital Purchase Book for Milk, Tea & Grocery Businesses",
+    noindex: false,
+  },
+  "/auth": { title: "Sign in · Soft Ledger", noindex: true },
+  "/connect": { title: "Connect · Soft Ledger", noindex: true },
+  "/dashboard": { title: "Dashboard · Soft Ledger", noindex: true },
+};
+
+function PageMeta() {
+  const location = useLocation();
+  useEffect(() => {
+    const known = PAGE_TITLES[location.pathname];
+    const isPrivate = known?.noindex ?? location.pathname.startsWith("/dashboard");
+    document.title = known?.title ?? "Soft Ledger";
+    let meta = document.querySelector('meta[name="robots"]');
+    if (isPrivate) {
+      if (!meta) {
+        meta = document.createElement("meta");
+        meta.setAttribute("name", "robots");
+        document.head.appendChild(meta);
+      }
+      meta.setAttribute("content", "noindex, nofollow");
+    } else if (meta) {
+      meta.removeAttribute("content");
+    }
+  }, [location.pathname]);
+  return null;
+}
 
 function RouteLoading() {
   return (
@@ -78,8 +107,6 @@ class RootErrorBoundary extends React.Component<
   }
 }
 
-const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
-
 function RouteSyncer() {
   const location = useLocation();
   useEffect(() => {
@@ -109,35 +136,35 @@ createRoot(document.getElementById("root")!).render(
       <ToolbarErrorBoundary>
         <VlyToolbar />
       </ToolbarErrorBoundary>
-      <ConvexAuthProvider client={convex}>
-        <BrowserRouter>
-          <RouteSyncer />
-          <Suspense fallback={<RouteLoading />}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route
-                path="/auth"
-                element={<AuthPage redirectAfterAuth="/dashboard" />}
-              />
-              <Route
-                path="/connect"
-                element={
-                  <RequireAuth>
-                    <ConnectPage />
-                  </RequireAuth>
-                }
-              />
-              <Route
-                path="/dashboard/*"
-                element={
-                  <RequireAuth>
-                    <Dashboard />
-                  </RequireAuth>
-                }
-              />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+      <BrowserRouter>
+        <RouteSyncer />
+        <PageMeta />
+        <Suspense fallback={<RouteLoading />}>
+          <Routes>
+            <Route path="/" element={<Landing />} />
+            <Route
+              path="/auth"
+              element={<AuthPage redirectAfterAuth="/dashboard" />}
+            />
+            <Route
+              path="/connect"
+              element={
+                <RequireAuth>
+                  <ConnectPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/dashboard/*"
+              element={
+                <RequireAuth>
+                  <Dashboard />
+                </RequireAuth>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
         </BrowserRouter>
         <Toaster
           position="top-center"
@@ -145,7 +172,6 @@ createRoot(document.getElementById("root")!).render(
             className: "rounded-2xl font-medium text-sm",
           }}
         />
-      </ConvexAuthProvider>
     </RootErrorBoundary>
   </StrictMode>,
 );

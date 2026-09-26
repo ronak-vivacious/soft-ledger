@@ -15,7 +15,8 @@ import {
 } from "@/components/ui/input-otp";
 
 import { useAuth } from "@/hooks/use-auth";
-import { BookOpen, ArrowRight, Loader2, Mail, UserX } from "lucide-react";
+import { signInEmailOtp, verifyEmailOtp } from "@/lib/api-client";
+import { BookOpen, ArrowRight, Loader2, Mail } from "lucide-react";
 import { Suspense, useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 
@@ -34,31 +35,59 @@ function resolveRedirectAfterAuth(
 }
 
 function Auth({ redirectAfterAuth }: AuthProps = {}) {
-  const { isLoading: authLoading, isAuthenticated, signIn } = useAuth();
+  const { isLoading: authLoading, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const redirect = resolveRedirectAfterAuth(
     searchParams.get("returnTo"),
     redirectAfterAuth,
   );
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [slowConnect, setSlowConnect] = useState(false);
+
+  // If a request hangs for 6s+ (backend unreachable), surface a hint instead
+  // of an endless spinner.
+  useEffect(() => {
+    if (!isLoading) {
+      setSlowConnect(false);
+      return;
+    }
+    const t = setTimeout(() => setSlowConnect(true), 6000);
+    return () => clearTimeout(t);
+  }, [isLoading]);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
-      navigate(redirect);
+      if (mode === "signup" && !searchParams.get("returnTo")) {
+        navigate(`/dashboard?new=1`, { replace: true });
+      } else {
+        navigate(redirect);
+      }
     }
-  }, [authLoading, isAuthenticated, navigate, redirect]);
+  }, [authLoading, isAuthenticated, navigate, redirect, mode, searchParams]);
+
+  const switchMode = (next: "signin" | "signup") => {
+    setMode(next);
+    setStep("signIn");
+    setOtp("");
+    setError(null);
+  };
+
+  const isSignUp = mode === "signup";
+
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsLoading(true);
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
-      await signIn("email-otp", formData);
-      setStep({ email: formData.get("email") as string });
+      const email = formData.get("email") as string;
+      await signInEmailOtp(email);
+      setStep({ email });
       setIsLoading(false);
     } catch (error) {
       console.error("Email sign-in error:", error);
@@ -77,30 +106,13 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setError(null);
     try {
       const formData = new FormData(event.currentTarget);
-      await signIn("email-otp", formData);
+      await verifyEmailOtp(formData.get("email") as string, formData.get("code") as string);
       navigate(redirect);
     } catch (error) {
       console.error("OTP verification error:", error);
       setError("That code didn't work. Mind checking and trying again?");
       setIsLoading(false);
       setOtp("");
-    }
-  };
-
-  const handleGuestLogin = async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      await signIn("anonymous");
-      navigate(redirect);
-    } catch (error) {
-      console.error("Guest login error:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Something went wrong with guest access. Please try again.",
-      );
-      setIsLoading(false);
     }
   };
 
@@ -119,12 +131,40 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
           <Card className="w-full border-border/30 soft-shadow-md">
             {step === "signIn" ? (
               <>
+                {/* Mode toggle */}
+                <div className="flex p-1 bg-muted/60 rounded-xl mb-4">
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signin")}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                      !isSignUp
+                        ? "bg-card text-foreground soft-shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Sign in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => switchMode("signup")}
+                    className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
+                      isSignUp
+                        ? "bg-card text-foreground soft-shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    Sign up
+                  </button>
+                </div>
+
                 <CardHeader className="text-center pb-2">
                   <CardTitle className="text-xl font-semibold">
-                    Welcome!
+                    {isSignUp ? "Create your account" : "Welcome back!"}
                   </CardTitle>
                   <CardDescription>
-                    Drop in your email and we&apos;ll get you set up
+                    {isSignUp
+                      ? "Enter your email and we'll send you a code to get set up"
+                      : "Enter your email and we'll send you a sign-in code"}
                   </CardDescription>
                 </CardHeader>
                 <form onSubmit={handleEmailSubmit}>
@@ -157,28 +197,38 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                     {error && (
                       <p className="mt-2 text-sm text-error">{error}</p>
                     )}
-
-                    <div className="relative my-6">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-border/50" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-card px-2 text-muted-foreground">
-                          Or
-                        </span>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full h-12 rounded-xl"
-                      onClick={handleGuestLogin}
-                      disabled={isLoading}
-                    >
-                      <UserX className="mr-2 h-4 w-4" />
-                      Jump in without an account
-                    </Button>
+                    {slowConnect && (
+                      <p className="mt-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-center">
+                        Taking unusually long — the app can&apos;t reach its
+                        database. Reload the page; if it keeps happening,
+                        restart the app from the dashboard.
+                      </p>
+                    )}
+                    <p className="mt-4 text-xs text-muted-foreground text-center">
+                      {isSignUp ? (
+                        <>
+                          Already have an account?{" "}
+                          <button
+                            type="button"
+                            onClick={() => switchMode("signin")}
+                            className="text-primary font-medium cursor-pointer hover:underline"
+                          >
+                            Sign in
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          New to Soft Ledger?{" "}
+                          <button
+                            type="button"
+                            onClick={() => switchMode("signup")}
+                            className="text-primary font-medium cursor-pointer hover:underline"
+                          >
+                            Create an account
+                          </button>
+                        </>
+                      )}
+                    </p>
                   </CardContent>
                 </form>
               </>
@@ -186,7 +236,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
               <>
                 <CardHeader className="text-center pb-2">
                   <CardTitle className="text-xl font-semibold">
-                    Check your inbox
+                    {isSignUp ? "Verify your email" : "Check your inbox"}
                   </CardTitle>
                   <CardDescription>
                     We sent a code to <span className="font-medium text-foreground">{step.email}</span>

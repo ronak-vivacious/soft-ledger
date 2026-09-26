@@ -1,5 +1,5 @@
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useQuery } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { useAuth } from "@/hooks/use-auth";
 import { Routes, Route, Navigate } from "react-router";
 import { Loader2 } from "lucide-react";
@@ -11,6 +11,11 @@ import Activity from "./Activity";
 import More from "./More";
 import InvitePage from "./InvitePage";
 import Onboarding from "./Onboarding";
+import Products from "./Products";
+import Subscriptions from "./Subscriptions";
+import Notifications from "./Notifications";
+import Profile from "./Profile";
+import Connect from "./Connect";
 
 function LoadingScreen() {
   return (
@@ -38,25 +43,21 @@ export default function Dashboard() {
 
   return (
     <Routes>
-      <Route
-        index
-        element={isVendor ? <VendorHome /> : <CustomerHome />}
-      />
+      <Route index element={isVendor ? <VendorHome /> : <CustomerHome />} />
       {isVendor && (
         <>
           <Route path="customers" element={<CustomerList />} />
           <Route path="customers/:customerId" element={<CustomerDetail />} />
-          <Route path="activity" element={<Activity />} />
-          <Route path="more" element={<More />} />
+          <Route path="products" element={<Products />} />
+          <Route path="subscriptions" element={<Subscriptions />} />
           <Route path="more/invite" element={<InvitePage />} />
         </>
       )}
-      {!isVendor && (
-        <>
-          <Route path="activity" element={<Activity />} />
-          <Route path="more" element={<More />} />
-        </>
-      )}
+      {!isVendor && <Route path="connect" element={<Connect />} />}
+      <Route path="activity" element={<Activity />} />
+      <Route path="notifications" element={<Notifications />} />
+      <Route path="profile" element={<Profile />} />
+      <Route path="more" element={<More />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );

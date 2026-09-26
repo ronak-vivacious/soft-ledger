@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useQuery } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { AppShell } from "@/components/app/AppShell";
-import { Money } from "@/components/app/MoneyDisplay";
+import { Money, formatMoney } from "@/components/app/MoneyDisplay";
 import { StatusBadge, getPaymentStatus } from "@/components/app/StatusBadge";
 import { SkeletonList } from "@/components/app/SkeletonCard";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -11,18 +11,10 @@ import { PaymentSheet } from "@/components/app/PaymentSheet";
 import { NewCustomerSheet } from "@/components/app/NewCustomerSheet";
 import { useNavigate } from "react-router";
 import { Plus, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export default function CustomerList() {
-  const business = useQuery(api.businesses.getByUser);
-  const customers = useQuery(
-    api.customers.getByBusiness,
-    business ? { businessId: business._id } : "skip",
-  );
-  const products = useQuery(
-    api.products.getByBusiness,
-    business ? { businessId: business._id } : "skip",
-  );
+  const customers = useQuery(api.customers.getByBusiness);
+  const products = useQuery(api.products.getMine);
   const navigate = useNavigate();
 
   const [search, setSearch] = useState("");
@@ -37,19 +29,9 @@ export default function CustomerList() {
     due: number;
   } | null>(null);
 
-  const filteredCustomers = customers?.filter((c) =>
+  const filteredCustomers = customers?.filter((c: any) =>
     c.name.toLowerCase().includes(search.toLowerCase()),
   );
-
-  if (!business) {
-    return (
-      <AppShell role="vendor">
-        <div className="pt-4">
-          <SkeletonList count={5} />
-        </div>
-      </AppShell>
-    );
-  }
 
   return (
     <AppShell role="vendor">
@@ -59,7 +41,7 @@ export default function CustomerList() {
           <div>
             <h1 className="text-2xl font-bold">Customers</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {customers?.length || 0} customers
+              {customers?.length ?? 0} customers
             </p>
           </div>
           <button
@@ -109,10 +91,10 @@ export default function CustomerList() {
           />
         ) : (
           <div className="space-y-2">
-            {filteredCustomers?.map((customer) => {
+            {filteredCustomers?.map((customer: any) => {
               const status = getPaymentStatus(
                 customer.totalBilled,
-                customer.totalPaid,
+                customer.totalConfirmed,
               );
 
               return (
@@ -138,15 +120,18 @@ export default function CustomerList() {
                       }
                       className="flex-1 min-w-0 text-left"
                     >
-                      <p className="font-medium text-sm truncate">
-                        {customer.name}
-                      </p>
+                      <p className="font-medium text-sm truncate">{customer.name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <StatusBadge status={status} />
                         {customer.due > 0 && (
                           <span className="text-xs text-muted-foreground">
-                            · {formatMoneyShort(customer.due)} due
+                            · {formatMoney(customer.due)} due
                           </span>
+                        )}
+                        {customer.linkedUserId ? (
+                          <span className="text-xs text-success">· linked</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">· offline</span>
                         )}
                       </div>
                     </button>
@@ -190,17 +175,12 @@ export default function CustomerList() {
       </div>
 
       {/* Sheets */}
-      <NewCustomerSheet
-        open={showNewCustomer}
-        onClose={() => setShowNewCustomer(false)}
-        businessId={business._id}
-      />
+      <NewCustomerSheet open={showNewCustomer} onClose={() => setShowNewCustomer(false)} />
 
       {recordingFor && products && (
         <RecordSheet
           open={!!recordingFor}
           onClose={() => setRecordingFor(null)}
-          businessId={business._id}
           customerId={recordingFor.customerId}
           customerName={recordingFor.customerName}
           products={products}
@@ -211,20 +191,12 @@ export default function CustomerList() {
         <PaymentSheet
           open={!!paymentFor}
           onClose={() => setPaymentFor(null)}
-          businessId={business._id}
           customerId={paymentFor.customerId}
           customerName={paymentFor.customerName}
           currentDue={paymentFor.due}
+          recordedByRole="vendor"
         />
       )}
     </AppShell>
   );
-}
-
-function formatMoneyShort(paise: number): string {
-  const rupees = paise / 100;
-  if (rupees >= 1000) {
-    return `₹${(rupees / 1000).toFixed(1)}k`;
-  }
-  return `₹${rupees}`;
 }

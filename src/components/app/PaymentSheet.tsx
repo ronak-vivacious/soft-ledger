@@ -6,35 +6,35 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useMutation } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { formatMoney } from "./MoneyDisplay";
+import { t } from "@/lib/i18n";
 
 const PAYMENT_METHODS = [
-  { id: "cash", label: "Cash", icon: "💵" },
-  { id: "upi", label: "UPI", icon: "📱" },
-  { id: "bank", label: "Bank", icon: "🏦" },
-  { id: "other", label: "Other", icon: "💳" },
+  { id: "cash", label: t("cash"), icon: "💵" },
+  { id: "upi", label: t("upi"), icon: "📱" },
+  { id: "bank", label: t("bank"), icon: "🏦" },
+  { id: "other", label: t("other"), icon: "💳" },
 ];
 
 export function PaymentSheet({
   open,
   onClose,
-  businessId,
   customerId,
   customerName,
   currentDue,
+  recordedByRole,
 }: {
   open: boolean;
   onClose: () => void;
-  businessId: string;
   customerId: string;
   customerName: string;
   currentDue: number;
+  recordedByRole: "vendor" | "customer";
 }) {
   const createPayment = useMutation(api.payments.create);
   const [amount, setAmount] = useState("");
@@ -42,7 +42,6 @@ export function PaymentSheet({
   const [recording, setRecording] = useState(false);
   const [done, setDone] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
   const amountPaise = Math.round(parseFloat(amount || "0") * 100);
 
   const handleRecord = async () => {
@@ -50,11 +49,9 @@ export function PaymentSheet({
     setRecording(true);
     try {
       await createPayment({
-        businessId: businessId as any,
-        customerId: customerId as any,
+        customerId: customerId as never,
         amount: amountPaise,
         method,
-        date: today,
       });
       setDone(true);
       setTimeout(() => {
@@ -62,21 +59,23 @@ export function PaymentSheet({
         setRecording(false);
         setAmount("");
         onClose();
-      }, 1200);
-    } catch {
-      toast.error("Something went wrong. Please try again.");
+      }, 1400);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("errGeneric"));
       setRecording(false);
     }
   };
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="px-4 pb-8">
+      <DrawerContent className="px-4 pb-8 max-h-[85vh] overflow-y-auto">
         <DrawerHeader className="px-0 pt-4">
           <DrawerTitle className="text-lg font-semibold">
             {done
-              ? "Payment recorded ✓"
-              : `Record payment from ${customerName}`}
+              ? t("paymentRecorded")
+              : recordedByRole === "vendor"
+                ? `${t("paymentFrom")} ${customerName}`
+                : `${t("payNow")} — ${customerName}`}
           </DrawerTitle>
         </DrawerHeader>
 
@@ -85,27 +84,24 @@ export function PaymentSheet({
             <div className="h-16 w-16 rounded-full bg-success-light flex items-center justify-center">
               <Check className="h-8 w-8 text-success" />
             </div>
-            <p className="text-2xl font-bold text-success">
-              {formatMoney(amountPaise)}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              via {PAYMENT_METHODS.find((m) => m.id === method)?.label}
+            <p className="text-2xl font-bold text-success">{formatMoney(amountPaise)}</p>
+            <p className="text-sm text-muted-foreground text-center">
+              {t("statusPendingVerify")} — the {recordedByRole === "vendor" ? "customer" : "vendor"}{" "}
+              will verify it.
             </p>
           </div>
         ) : (
           <div className="space-y-6">
             {/* Due amount */}
             <div className="bg-error-light rounded-2xl p-4 text-center">
-              <p className="text-sm text-muted-foreground">Outstanding due</p>
-              <p className="text-2xl font-bold text-error mt-1">
-                {formatMoney(currentDue)}
-              </p>
+              <p className="text-sm text-muted-foreground">{t("outstandingDue")}</p>
+              <p className="text-2xl font-bold text-error mt-1">{formatMoney(currentDue)}</p>
             </div>
 
             {/* Amount input */}
             <div className="bg-card rounded-2xl p-4 soft-shadow">
               <label className="text-sm text-muted-foreground block mb-2">
-                Amount (₹)
+                {t("amount")} (₹)
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground">
@@ -144,9 +140,7 @@ export function PaymentSheet({
 
             {/* Payment method */}
             <div>
-              <p className="text-sm text-muted-foreground mb-3 px-1">
-                Payment method
-              </p>
+              <p className="text-sm text-muted-foreground mb-3 px-1">{t("paymentMethod")}</p>
               <div className="grid grid-cols-4 gap-2">
                 {PAYMENT_METHODS.map((m) => (
                   <button
@@ -173,9 +167,9 @@ export function PaymentSheet({
               className="w-full h-14 rounded-2xl text-base font-semibold bg-success hover:bg-success/90 active:scale-[0.98] transition-all text-white"
             >
               {recording ? (
-                <span className="animate-pulse">Recording...</span>
+                <span className="animate-pulse">{t("recording")}</span>
               ) : (
-                `Record ${formatMoney(amountPaise)}`
+                `${t("record")} ${formatMoney(amountPaise)}`
               )}
             </Button>
           </div>

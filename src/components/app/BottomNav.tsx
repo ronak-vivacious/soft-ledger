@@ -1,29 +1,37 @@
-import { Home, Users, Activity, Settings } from "lucide-react";
+import { useQuery } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
+import { Home, Users, Activity, Settings, Package, Repeat, Bell } from "lucide-react";
 import { useNavigate, useLocation } from "react-router";
 import { cn } from "@/lib/utils";
+import { t } from "@/lib/i18n";
 
 interface NavItem {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   path: string;
+  badge?: number;
 }
-
-const vendorNav: NavItem[] = [
-  { icon: Home, label: "Home", path: "/dashboard" },
-  { icon: Users, label: "Customers", path: "/dashboard/customers" },
-  { icon: Activity, label: "Activity", path: "/dashboard/activity" },
-  { icon: Settings, label: "More", path: "/dashboard/more" },
-];
-
-const customerNav: NavItem[] = [
-  { icon: Home, label: "Home", path: "/dashboard" },
-  { icon: Activity, label: "Activity", path: "/dashboard/activity" },
-  { icon: Settings, label: "More", path: "/dashboard/more" },
-];
 
 export function BottomNav({ role }: { role: "vendor" | "customer" }) {
   const navigate = useNavigate();
   const location = useLocation();
+  const unread = useQuery(api.dashboard.unreadCount);
+
+  const vendorNav: NavItem[] = [
+    { icon: Home, label: t("navHome"), path: "/dashboard" },
+    { icon: Users, label: t("navCustomers"), path: "/dashboard/customers" },
+    { icon: Repeat, label: t("subscriptions"), path: "/dashboard/subscriptions" },
+    { icon: Bell, label: "Alerts", path: "/dashboard/notifications", badge: unread },
+    { icon: Settings, label: t("navMore"), path: "/dashboard/more" },
+  ];
+
+  const customerNav: NavItem[] = [
+    { icon: Home, label: t("navHome"), path: "/dashboard" },
+    { icon: Activity, label: t("navActivity"), path: "/dashboard/activity" },
+    { icon: Bell, label: "Alerts", path: "/dashboard/notifications", badge: unread },
+    { icon: Settings, label: t("navMore"), path: "/dashboard/more" },
+  ];
+
   const items = role === "vendor" ? vendorNav : customerNav;
 
   return (
@@ -32,7 +40,7 @@ export function BottomNav({ role }: { role: "vendor" | "customer" }) {
       role="navigation"
       aria-label="Main navigation"
     >
-      <div className="mx-auto max-w-lg flex items-center justify-around px-2 py-1">
+      <div className="mx-auto max-w-lg flex items-center justify-around px-1 py-1">
         {items.map((item) => {
           const isActive =
             item.path === "/dashboard"
@@ -44,14 +52,21 @@ export function BottomNav({ role }: { role: "vendor" | "customer" }) {
               key={item.path}
               onClick={() => navigate(item.path)}
               className={cn(
-                "flex flex-col items-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-200",
+                "relative flex flex-col items-center gap-0.5 px-3 py-2 rounded-xl transition-all duration-200",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground",
               )}
               aria-current={isActive ? "page" : undefined}
             >
-              <item.icon className={cn("h-5 w-5", isActive && "scale-110")} />
+              <span className="relative">
+                <item.icon className={cn("h-5 w-5", isActive && "scale-110")} />
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2 h-4 min-w-4 px-1 rounded-full bg-error text-white text-[10px] font-bold flex items-center justify-center">
+                    {item.badge > 9 ? "9+" : item.badge}
+                  </span>
+                )}
+              </span>
               <span
                 className={cn(
                   "text-[11px] font-medium",
@@ -67,3 +82,6 @@ export function BottomNav({ role }: { role: "vendor" | "customer" }) {
     </nav>
   );
 }
+
+// Keep the old Package import used for potential vendor quick-links.
+export const _icons = { Package };
