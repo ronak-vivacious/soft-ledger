@@ -6,19 +6,18 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useMutation } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
+import { t } from "@/lib/i18n";
 
 export function NewCustomerSheet({
   open,
   onClose,
-  businessId,
 }: {
   open: boolean;
   onClose: () => void;
-  businessId: string;
 }) {
   const createCustomer = useMutation(api.customers.create);
   const [name, setName] = useState("");
@@ -31,7 +30,6 @@ export function NewCustomerSheet({
     setSaving(true);
     try {
       await createCustomer({
-        businessId: businessId as any,
         name: name.trim(),
         phone: phone.trim() || undefined,
       });
@@ -43,15 +41,15 @@ export function NewCustomerSheet({
         setPhone("");
         onClose();
       }, 1200);
-    } catch {
-      toast.error("Could not add customer. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("errGeneric"));
       setSaving(false);
     }
   };
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="px-4 pb-8">
+      <DrawerContent className="px-4 pb-8 max-h-[85vh] overflow-y-auto">
         <DrawerHeader className="px-0 pt-4">
           <DrawerTitle className="text-lg font-semibold">
             {done ? "Customer added ✓" : "New customer"}
@@ -100,11 +98,7 @@ export function NewCustomerSheet({
               disabled={saving || !name.trim()}
               className="w-full h-14 rounded-2xl text-base font-semibold bg-primary hover:bg-primary/90 active:scale-[0.98] transition-all mt-4"
             >
-              {saving ? (
-                <span className="animate-pulse">Saving...</span>
-              ) : (
-                "Add customer"
-              )}
+              {saving ? <span className="animate-pulse">Saving...</span> : "Add customer"}
             </Button>
           </div>
         )}

@@ -7,43 +7,43 @@ import {
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useMutation } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { toast } from "sonner";
 import { Check } from "lucide-react";
 import { formatMoney } from "./MoneyDisplay";
+import { t } from "@/lib/i18n";
 
 interface Product {
   _id: string;
   name: string;
   unit: string;
   price: number;
+  active?: boolean;
 }
 
 export function RecordSheet({
   open,
   onClose,
-  businessId,
   customerId,
   customerName,
   products,
 }: {
   open: boolean;
   onClose: () => void;
-  businessId: string;
   customerId: string;
   customerName: string;
   products: Product[];
 }) {
   const createTransaction = useMutation(api.transactions.create);
+  const activeProducts = products.filter((p) => p.active !== false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(
-    products[0] || null,
+    activeProducts[0] || null,
   );
   const [quantity, setQuantity] = useState(1);
   const [recording, setRecording] = useState(false);
   const [done, setDone] = useState(false);
 
-  const today = new Date().toISOString().split("T")[0];
   const rate = selectedProduct?.price || 0;
   const total = Math.round(quantity * rate);
 
@@ -52,12 +52,9 @@ export function RecordSheet({
     setRecording(true);
     try {
       await createTransaction({
-        businessId: businessId as any,
-        customerId: customerId as any,
-        productId: selectedProduct._id as any,
+        customerId: customerId as never,
+        productId: selectedProduct._id as never,
         quantity,
-        rate,
-        date: today,
       });
       setDone(true);
       setTimeout(() => {
@@ -66,8 +63,8 @@ export function RecordSheet({
         setQuantity(1);
         onClose();
       }, 1200);
-    } catch {
-      toast.error("Something went wrong. Please try again.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("errGeneric"));
       setRecording(false);
     }
   };
@@ -78,10 +75,10 @@ export function RecordSheet({
 
   return (
     <Drawer open={open} onOpenChange={(o) => !o && onClose()}>
-      <DrawerContent className="px-4 pb-8">
+      <DrawerContent className="px-4 pb-8 max-h-[85vh] overflow-y-auto">
         <DrawerHeader className="px-0 pt-4">
           <DrawerTitle className="text-lg font-semibold">
-            {done ? "Recorded ✓" : `Record for ${customerName}`}
+            {done ? t("recorded") : `${t("recordFor")} ${customerName}`}
           </DrawerTitle>
         </DrawerHeader>
 
@@ -93,20 +90,22 @@ export function RecordSheet({
             <p className="text-lg font-semibold text-foreground">
               {selectedProduct?.name} · {quantity} {selectedProduct?.unit}
             </p>
-            <p className="text-2xl font-bold text-primary">
-              {formatMoney(total)}
-            </p>
+            <p className="text-2xl font-bold text-primary">{formatMoney(total)}</p>
           </div>
+        ) : activeProducts.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-8">
+            No active products. Add one under Products first.
+          </p>
         ) : (
           <div className="space-y-6">
             {/* Product selector */}
-            <div className="flex gap-2">
-              {products.map((product) => (
+            <div className="flex flex-wrap gap-2">
+              {activeProducts.map((product) => (
                 <button
                   key={product._id}
                   onClick={() => setSelectedProduct(product)}
                   className={cn(
-                    "flex-1 py-3 px-4 rounded-2xl text-sm font-medium transition-all duration-200",
+                    "py-3 px-4 rounded-2xl text-sm font-medium transition-all duration-200",
                     selectedProduct?._id === product._id
                       ? "bg-primary text-primary-foreground shadow-md"
                       : "bg-muted text-muted-foreground hover:bg-muted/80",
@@ -121,7 +120,7 @@ export function RecordSheet({
             {/* Quantity picker */}
             <div className="bg-card rounded-2xl p-6 soft-shadow-md">
               <p className="text-sm text-muted-foreground text-center mb-4">
-                Quantity
+                {t("quantity")}
               </p>
               <div className="flex items-center justify-center gap-6">
                 <button
@@ -150,11 +149,9 @@ export function RecordSheet({
             {/* Price preview */}
             <div className="flex items-center justify-between px-2">
               <span className="text-sm text-muted-foreground">
-                Rate: {formatMoney(rate)}/{selectedProduct?.unit}
+                {t("rate")}: {formatMoney(rate)}/{selectedProduct?.unit}
               </span>
-              <span className="text-lg font-bold text-primary">
-                {formatMoney(total)}
-              </span>
+              <span className="text-lg font-bold text-primary">{formatMoney(total)}</span>
             </div>
 
             {/* Quick quantity buttons */}
@@ -182,9 +179,9 @@ export function RecordSheet({
               className="w-full h-14 rounded-2xl text-base font-semibold bg-primary hover:bg-primary/90 active:scale-[0.98] transition-all"
             >
               {recording ? (
-                <span className="animate-pulse">Recording...</span>
+                <span className="animate-pulse">{t("recording")}</span>
               ) : (
-                `Record ${formatMoney(total)}`
+                `${t("record")} ${formatMoney(total)}`
               )}
             </Button>
           </div>

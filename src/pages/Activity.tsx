@@ -1,5 +1,5 @@
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useQuery } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { AppShell } from "@/components/app/AppShell";
 import { Money } from "@/components/app/MoneyDisplay";
 import { SkeletonCard } from "@/components/app/SkeletonCard";
@@ -9,10 +9,20 @@ import { useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-function groupByDate(
-  items: Array<{ date: string; [key: string]: unknown }>,
-): Map<string, typeof items> {
-  const map = new Map<string, typeof items>();
+type Tx = {
+  _id: string;
+  date: string;
+  productName?: string;
+  productUnit?: string;
+  quantity: number;
+  totalAmount: number;
+  notes?: string;
+  source?: "single" | "subscription";
+  reversalOfTransactionId?: string;
+};
+
+function groupByDate<T extends { date: string }>(items: T[]): Map<string, T[]> {
+  const map = new Map<string, T[]>();
   for (const item of items) {
     const existing = map.get(item.date) || [];
     existing.push(item);
@@ -21,93 +31,67 @@ function groupByDate(
   return map;
 }
 
-function VendorActivity({
-  businessId,
-  startDate,
-  endDate,
-}: {
-  businessId: string;
-  startDate: string;
-  endDate: string;
-}) {
-  const transactions = useQuery(api.transactions.getByBusinessRange, {
-    businessId: businessId as any,
-    startDate,
-    endDate,
-  });
-  return <ActivityList txList={transactions ?? undefined} />;
-}
+function ActivityList({ txList }: { txList: Tx[] | undefined }) {
+  if (!txList) {
+    return (
+      <div className="space-y-4">
+        <SkeletonCard />
+        <SkeletonCard />
+      </div>
+    );
+  }
+  if (txList.length === 0) {
+    return (
+      <EmptyState
+        icon="📋"
+        title="No transactions this month"
+        description="Transactions will appear here once purchases are recorded."
+      />
+    );
+  }
 
-function CustomerActivity({
-  customerId,
-  startDate,
-  endDate,
-}: {
-  customerId: string;
-  startDate: string;
-  endDate: string;
-}) {
-  const transactions = useQuery(api.transactions.getByCustomerRange, {
-    customerId: customerId as any,
-    startDate,
-    endDate,
-  });
-  return <ActivityList txList={transactions ?? undefined} />;
-}
-
-function ActivityList({
-  txList,
-}: {
-  txList: Array<Record<string, unknown>> | undefined;
-}) {
-  const txByDate = txList ? groupByDate(txList as any) : null;
-
+  const txByDate = groupByDate(txList);
   return (
-    <>
-      {!txList ? (
-        <div className="space-y-4">
-          <SkeletonCard />
-          <SkeletonCard />
-        </div>
-      ) : txList.length === 0 ? (
-        <EmptyState
-          icon="📋"
-          title="No transactions this month"
-          description="Transactions will appear here once deliveries are recorded."
-        />
-      ) : (
-        <div className="space-y-6 pb-8">
-          {Array.from(txByDate?.entries() || []).map(([date, items]) => (
-            <div key={date}>
-              <p className="text-sm font-medium text-muted-foreground mb-2 px-1">
-                {formatDate(date)}
-              </p>
-              <div className="space-y-1.5">
-                {(items as any[]).map((tx: any) => (
-                  <div
-                    key={tx._id}
-                    className="bg-card rounded-2xl p-4 soft-shadow border border-border/20"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">📦</span>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">
-                          {tx.productName || "Product"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {tx.quantity} {tx.productUnit || "units"}
-                        </p>
-                      </div>
-                      <Money amount={tx.totalAmount} size="sm" />
-                    </div>
+    <div className="space-y-6 pb-8">
+      {Array.from(txByDate.entries()).map(([date, items]) => (
+        <div key={date}>
+          <p className="text-sm font-medium text-muted-foreground mb-2 px-1">
+            {formatDate(date)}
+          </p>
+          <div className="space-y-1.5">
+            {items.map((tx) => (
+              <div
+                key={tx._id}
+                className={`bg-card rounded-2xl p-4 soft-shadow border ${
+                  tx.totalAmount < 0 || tx.reversalOfTransactionId
+                    ? "border-error/30 bg-error-light/40"
+                    : "border-border/20"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">
+                    {tx.totalAmount < 0 ? "↩️" : tx.source === "subscription" ? "🔁" : "📦"}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">
+                      {tx.productName || "Product"}
+                      {tx.source === "subscription" && (
+                        <span className="ml-1.5 text-xs text-primary">· subscription</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tx.quantity} {tx.productUnit || "units"}
+                      {tx.notes ? ` · ${tx.notes}` : ""}
+                    </p>
                   </div>
-                ))}
+                  <Money amount={tx.totalAmount} size="sm" />
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      )}
-    </>
+      ))}
+    </div>
   );
 }
 
@@ -125,18 +109,23 @@ export default function Activity() {
   const prevMonth = () => {
     const [y, m] = yearMonth.split("-").map(Number);
     const d = new Date(y, m - 2);
-    setYearMonth(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-    );
+    setYearMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   };
 
   const nextMonth = () => {
     const [y, m] = yearMonth.split("-").map(Number);
     const d = new Date(y, m);
-    setYearMonth(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
-    );
+    setYearMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
   };
+
+  const vendorTx = useQuery(
+    api.transactions.getMyBusiness,
+    business ? { startDate, endDate } : "skip",
+  );
+  const customerTx = useQuery(
+    api.transactions.getMine,
+    !business && customer ? { startDate, endDate } : "skip",
+  );
 
   return (
     <AppShell role={isVendor ? "vendor" : "customer"}>
@@ -148,6 +137,7 @@ export default function Activity() {
           <button
             onClick={prevMonth}
             className="h-8 w-8 rounded-full bg-card soft-shadow flex items-center justify-center hover:bg-muted transition-all"
+            aria-label="Previous month"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
@@ -157,29 +147,16 @@ export default function Activity() {
           <button
             onClick={nextMonth}
             className="h-8 w-8 rounded-full bg-card soft-shadow flex items-center justify-center hover:bg-muted transition-all"
+            aria-label="Next month"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>
 
-        {/* Activity Content */}
-        {isVendor && business ? (
-          <VendorActivity
-            businessId={business._id}
-            startDate={startDate}
-            endDate={endDate}
-          />
-        ) : customer ? (
-          <CustomerActivity
-            customerId={customer._id}
-            startDate={startDate}
-            endDate={endDate}
-          />
+        {isVendor ? (
+          <ActivityList txList={vendorTx as Tx[] | undefined} />
         ) : (
-          <div className="space-y-4">
-            <SkeletonCard />
-            <SkeletonCard />
-          </div>
+          <ActivityList txList={customerTx as Tx[] | undefined} />
         )}
       </div>
     </AppShell>

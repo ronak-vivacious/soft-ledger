@@ -91,10 +91,19 @@ export default defineConfig({
   server: {
     // Bind to all interfaces so WebContainer's server-ready event fires.
     host: true,
-    port: 5173,
+    // Honor the PORT injected by the platform (isolated workspaces); fall
+    // back to 5173 for local runs. Prevents port-mismatch readiness failures.
+    port: Number(process.env.PORT) || 5173,
     // Keep HMR on, but disable full-screen error overlay
     hmr: {
       overlay: false,
+    },
+    // Proxy API calls to the local Hono dev server (mirrors Vercel /api).
+    proxy: {
+      "/api": {
+        target: `http://127.0.0.1:${process.env.API_PORT || 8787}`,
+        changeOrigin: true,
+      },
     },
   },
 });

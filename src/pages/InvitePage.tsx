@@ -1,11 +1,13 @@
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useMutation, useQuery } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { SkeletonCard } from "@/components/app/SkeletonCard";
-import { useAuth } from "@/hooks/use-auth";
-import { ArrowLeft, Copy, Check } from "lucide-react";
+import { ArrowLeft, Copy, Check, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
 function QRCode({ value }: { value: string }) {
   const size = 21;
@@ -75,19 +77,32 @@ function QRCode({ value }: { value: string }) {
 }
 
 export default function InvitePage() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const business = useQuery(api.businesses.getByUser);
-  const connections = useQuery(
-    api.connections.getByBusiness,
-    business ? { businessId: business._id } : "skip",
-  );
+  const invite = useQuery(api.connections.getMyInvite);
+  const createInvite = useMutation(api.connections.createInvite);
   const [copied, setCopied] = useState(false);
+  const [generating, setGenerating] = useState(false);
 
-  const inviteCode = connections?.[0]?.inviteCode || "";
-  const inviteLink = `${window.location.origin}/connect?code=${inviteCode}`;
+  const inviteCode = invite?.inviteCode ?? "";
+  const inviteLink = inviteCode
+    ? `${window.location.origin}/connect?code=${inviteCode}`
+    : "";
+
+  const handleGenerate = async () => {
+    setGenerating(true);
+    try {
+      await createInvite({});
+      toast.success("Invite code ready — share it with your customer");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("errGeneric"));
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleCopy = async () => {
+    if (!inviteLink) return;
     try {
       await navigator.clipboard.writeText(inviteLink);
       setCopied(true);
@@ -121,55 +136,77 @@ export default function InvitePage() {
           <button
             onClick={() => navigate(-1)}
             className="h-10 w-10 rounded-full bg-card soft-shadow flex items-center justify-center hover:bg-muted transition-all"
-            aria-label="Go back"
+            aria-label={t("back")}
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <h1 className="text-xl font-bold">Invite customers</h1>
+          <h1 className="text-xl font-bold">{t("inviteCustomers")}</h1>
         </div>
 
         <div className="flex flex-col items-center pt-8 gap-6">
           <div className="text-center">
-            <p className="text-sm text-muted-foreground">Connect with</p>
+            <p className="text-sm text-muted-foreground">{t("connectWith")}</p>
             <h2 className="text-2xl font-bold mt-1">{business.name}</h2>
           </div>
 
-          {/* QR Code */}
-          <Card className="w-full max-w-[280px] border-border/30 soft-shadow-lg">
-            <CardContent className="p-6">
-              <QRCode value={inviteCode} />
-            </CardContent>
-          </Card>
+          {inviteCode ? (
+            <>
+              {/* QR Code */}
+              <Card className="w-full max-w-[280px] border-border/30 soft-shadow-lg">
+                <CardContent className="p-6">
+                  <QRCode value={inviteCode} />
+                </CardContent>
+              </Card>
 
-          <p className="text-sm text-muted-foreground">
-            Have them scan this to get connected
-          </p>
+              <p className="text-sm text-muted-foreground">{t("scanToConnect")}</p>
 
-          <p className="text-sm text-muted-foreground">or</p>
+              <p className="text-sm text-muted-foreground">or</p>
 
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-2 px-6 py-3 rounded-full bg-primary/10 text-primary font-medium text-sm hover:bg-primary/15 active:scale-95 transition-all"
-          >
-            {copied ? (
-              <>
-                <Check className="h-4 w-4" />
-                Copied to clipboard!
-              </>
-            ) : (
-              <>
-                <Copy className="h-4 w-4" />
-                Copy the invite link
-              </>
-            )}
-          </button>
+              <button
+                onClick={handleCopy}
+                className="flex items-center gap-2 px-6 py-3 rounded-full bg-primary/10 text-primary font-medium text-sm hover:bg-primary/15 active:scale-95 transition-all"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4" />
+                    {t("copied")}
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-4 w-4" />
+                    {t("copyInviteLink")}
+                  </>
+                )}
+              </button>
 
-          <div className="bg-muted rounded-2xl px-5 py-3 text-center">
-            <p className="text-xs text-muted-foreground mb-1">Invite code</p>
-            <p className="text-lg font-mono font-bold tracking-widest">
-              {inviteCode}
-            </p>
-          </div>
+              <div className="bg-muted rounded-2xl px-5 py-3 text-center">
+                <p className="text-xs text-muted-foreground mb-1">{t("inviteCode")}</p>
+                <p className="text-lg font-mono font-bold tracking-widest">{inviteCode}</p>
+              </div>
+
+              <button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+              >
+                <RefreshCw className="h-3 w-3" /> Generate a new code
+              </button>
+            </>
+          ) : (
+            <div className="w-full max-w-xs text-center space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Generate an invite code to share with customers. They scan or tap
+                the link and connect instantly.
+              </p>
+              <Button
+                onClick={handleGenerate}
+                disabled={generating}
+                className="w-full h-12 rounded-2xl bg-primary hover:bg-primary/90 font-semibold"
+              >
+                {generating ? "Generating…" : t("sendInvite")}
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>

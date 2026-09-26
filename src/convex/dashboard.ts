@@ -1,156 +1,194 @@
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { getAuthUserId } from "@convex-dev/auth/server";
+import {
+  getBusinessForUser,
+  getCustomerForUser,
+  customerTotals,
+  istCurrentYearMonth,
+} from "./lib/helpers";
 
-// Today's summary for vendor dashboard
-export const todaySummary = query({
-  args: {
-    businessId: v.id("businesses"),
-    date: v.string(),
-  },
-  handler: async (ctx, args) => {
-    // Get today's transactions
-    const transactions = await ctx.db
-      .query("transactions")
-      .withIndex("by_business_date", (q) =>
-        q.eq("businessId", args.businessId).eq("date", args.date),
-      )
+/** Vendor overview: everything the home screen needs, in one query. */
+export const vendorOverview = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const business = await getBusinessForUser(ctx, userId);
+    if (!business) return null;
+
+    const today = istCurrentYearMonth() + "-01"; // not used directly; kept simple
+    const todayStr = istToday();
+    const monthStart = istCurrentYearMonth() + "-01";
+
+    const customers = await ctx.db
+      .query("customers")
+      .withIndex("by_business", (q) => q.eq("businessId", business._id))
       .collect();
 
-    // Get today's payments
-    const payments = await ctx.db
+    const activeCustomers = customers.filter((c) => c.active !== false);
+
+    // Aggregate balance + today/month activity per customer.
+    let totalOutstanding = 0;
+    let totalBilledMonth = 0;
+    let monthTxCount = 0;
+    const overdueCustomers: Array<{ name: string; due: number }> = [];
+
+    const monthTransactions = await ctx.db
+      .query("transactions")
+      .withIndex("by_business_date", (q) => q.eq("businessId", business._id).gte("date", monthStart))
+      .collect();
+
+    for (const c of activeCustomers) {
+      const totals = await customerTotals(ctx, c._id);
+      if (totals.due > 0) {
+        totalOutstanding += totals.due;
+        overdueCustomers.push({ name: c.name, due: totals.due });
+      }
+    }
+
+    for (const t of monthTransactions) {
+      if (t.date >= monthStart && t.totalAmount > 0) totalBilledMonth += t.totalAmount;
+      monthTxCount++;
+    }
+
+    const todayTx = monthTransactions.filter((t) => t.date === todayStr && t.totalAmount > 0);
+    const todayAmount = todayTx.reduce((s, t) => s + t.totalAmount, 0);
+
+    const monthPayments = await ctx.db
       .query("payments")
-      .withIndex("by_business_date", (q) =>
-        q.eq("businessId", args.businessId).eq("date", args.date),
-      )
+      .withIndex("by_business_date", (q) => q.eq("businessId", business._id).gte("date", monthStart))
       .collect();
+    const confirmedMonth = monthPayments
+      .filter((p) => p.status === "confirmed" && !p.reversed && p.date >= monthStart)
+      .reduce((s, p) => s + p.amount, 0);
+    const pendingVerify = monthPayments.filter(
+      (p) => p.status === "pending" && !p.reversed && p.recordedBy !== userId,
+    ).length;
 
-    // Unique customers today
-    const uniqueCustomers = new Set(transactions.map((t) => t.customerId));
+    const subs = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_business", (q) => q.eq("businessId", business._id))
+      .collect();
+    const activeSubs = subs.filter((s) => s.status === "active").length;
 
-    // Total quantity
-    const totalQuantity = transactions.reduce((sum, t) => sum + t.quantity, 0);
-
-    // Total amount
-    const totalAmount = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
-
-    // Total payments today
-    const totalPayments = payments.reduce((sum, p) => sum + p.amount, 0);
-
-    return {
-      customerCount: uniqueCustomers.size,
-      totalQuantity,
-      totalAmount,
-      totalPayments,
-      transactionCount: transactions.length,
-    };
-  },
-});
-
-// Recent transactions across all customers
-export const recentActivity = query({
-  args: {
-    businessId: v.id("businesses"),
-    date: v.string(),
-    limit: v.number(),
-  },
-  handler: async (ctx, args) => {
-    const transactions = await ctx.db
-      .query("transactions")
-      .withIndex("by_business_date", (q) =>
-        q.eq("businessId", args.businessId).eq("date", args.date),
-      )
-      .order("desc")
-      .take(args.limit);
-
-    // Enrich with customer and product names
-    const result = await Promise.all(
-      transactions.map(async (t) => {
+    // Recent activity: latest 5 transactions (any date).
+    const recentTx = monthTransactions
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b._creationTime - a._creationTime))
+      .slice(0, 5);
+    const recent = await Promise.all(
+      recentTx.map(async (t) => {
         const customer = await ctx.db.get(t.customerId);
-        const product = await ctx.db.get(t.productId);
         return {
-          ...t,
-          customerName: customer?.name || "Unknown",
-          productName: product?.name || "Unknown",
-          productUnit: product?.unit || "",
+          _id: t._id,
+          date: t.date,
+          productName: t.productName ?? "",
+          productUnit: t.productUnit ?? "",
+          quantity: t.quantity,
+          totalAmount: t.totalAmount,
+          customerName: customer?.name ?? "",
         };
       }),
     );
 
-    return result;
+    return {
+      businessName: business.name,
+      totalCustomers: activeCustomers.length,
+      activeSubscriptions: activeSubs,
+      todayPurchases: todayAmount,
+      todayCount: todayTx.length,
+      monthBilled: totalBilledMonth,
+      paymentsReceivedMonth: confirmedMonth,
+      totalOutstanding,
+      pendingVerifications: pendingVerify,
+      overdueCustomers: overdueCustomers.sort((a, b) => b.due - a.due).slice(0, 5),
+      recentActivity: recent,
+    };
   },
 });
 
-// Total outstanding across all customers
-export const totalOutstanding = query({
-  args: { businessId: v.id("businesses") },
-  handler: async (ctx, args) => {
-    const customers = await ctx.db
-      .query("customers")
-      .withIndex("by_business", (q) => q.eq("businessId", args.businessId))
-      .collect();
+function istToday(): string {
+  const ist = new Date(Date.now() + 5.5 * 60 * 60 * 1000);
+  return ist.toISOString().split("T")[0];
+}
 
-    let totalDue = 0;
+/** Customer overview: balance, month totals, subscriptions, pending verifications. */
+export const customerOverview = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new Error("Not authenticated");
+    const customer = await getCustomerForUser(ctx, userId);
+    if (!customer) return null;
 
-    for (const customer of customers) {
-      const transactions = await ctx.db
-        .query("transactions")
-        .withIndex("by_customer", (q) => q.eq("customerId", customer._id))
-        .collect();
-      const totalBilled = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
+    const business = await ctx.db.get(customer.businessId);
+    const totals = await customerTotals(ctx, customer._id);
+    const monthStart = istCurrentYearMonth() + "-01";
 
-      const payments = await ctx.db
-        .query("payments")
-        .withIndex("by_customer", (q) => q.eq("customerId", customer._id))
-        .collect();
-      const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
-
-      const due = totalBilled - totalPaid;
-      if (due > 0) totalDue += due;
-    }
-
-    return totalDue;
-  },
-});
-
-// Monthly summary for vendor
-export const monthlySummary = query({
-  args: {
-    businessId: v.id("businesses"),
-    yearMonth: v.string(), // YYYY-MM
-  },
-  handler: async (ctx, args) => {
-    const startDate = `${args.yearMonth}-01`;
-    const endDate = `${args.yearMonth}-31`;
-
-    const transactions = await ctx.db
+    const monthTx = await ctx.db
       .query("transactions")
-      .withIndex("by_business_date", (q) =>
-        q
-          .eq("businessId", args.businessId)
-          .gte("date", startDate)
-          .lte("date", endDate),
+      .withIndex("by_customer_date", (q) =>
+        q.eq("customerId", customer._id).gte("date", monthStart),
       )
       .collect();
+    const monthBilled = monthTx.filter((t) => t.totalAmount > 0).reduce((s, t) => s + t.totalAmount, 0);
 
-    const payments = await ctx.db
+    const monthPay = await ctx.db
       .query("payments")
-      .withIndex("by_business_date", (q) =>
-        q
-          .eq("businessId", args.businessId)
-          .gte("date", startDate)
-          .lte("date", endDate),
+      .withIndex("by_customer_date", (q) =>
+        q.eq("customerId", customer._id).gte("date", monthStart),
       )
       .collect();
+    const monthPaid = monthPay
+      .filter((p) => p.status === "confirmed" && !p.reversed)
+      .reduce((s, p) => s + p.amount, 0);
+    const pendingVerify = monthPay.filter(
+      (p) => p.status === "pending" && p.recordedBy !== userId,
+    ).length;
 
-    const totalBilled = transactions.reduce((sum, t) => sum + t.totalAmount, 0);
-    const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+    const subs = await ctx.db
+      .query("subscriptions")
+      .withIndex("by_customer", (q) => q.eq("customerId", customer._id))
+      .collect();
+    const activeSubs = subs.filter((s) => s.status === "active");
+
+    const recentTx = monthTx
+      .slice()
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b._creationTime - a._creationTime))
+      .slice(0, 5);
 
     return {
-      totalBilled,
-      totalPaid,
-      due: totalBilled - totalPaid,
-      transactionCount: transactions.length,
-      paymentCount: payments.length,
+      customerName: customer.name,
+      businessName: business?.name ?? "",
+      outstanding: totals.due,
+      credit: Math.max(0, -totals.due),
+      monthBilled,
+      monthPaid,
+      pendingVerifications: pendingVerify,
+      activeSubscriptions: activeSubs.length,
+      recentActivity: recentTx.map((t) => ({
+        _id: t._id,
+        date: t.date,
+        productName: t.productName ?? "",
+        productUnit: t.productUnit ?? "",
+        quantity: t.quantity,
+        totalAmount: t.totalAmount,
+      })),
     };
+  },
+});
+
+/** Unread notification count for badges. */
+export const unreadCount = query({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) return 0;
+    const rows = await ctx.db
+      .query("notifications")
+      .withIndex("by_user", (q) => q.eq("userId", userId))
+      .collect();
+    return rows.filter((n) => !n.read).length;
   },
 });

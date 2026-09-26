@@ -1,27 +1,33 @@
 import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useMutation, useQuery } from "@/lib/api-client";
+import { api } from "@/lib/api-client";
 import { useNavigate } from "react-router";
 import { Button } from "@/components/ui/button";
-import { Building2, ShoppingBag, ArrowRight, ArrowLeft, Search, Check, Loader2 } from "lucide-react";
+import {
+  Building2,
+  ShoppingBag,
+  ArrowRight,
+  ArrowLeft,
+  Search,
+  Check,
+  AtSign,
+} from "lucide-react";
 import { toast } from "sonner";
+import { t } from "@/lib/i18n";
 
-type Step =
-  | "pick"
-  | "business"
-  | "customer-search"
-  | "customer-name"
-  | "done";
+type Step = "pick" | "business" | "customer-search" | "customer-name" | "done";
+
+const USERNAME_RE = /^[a-z0-9_]{3,24}$/;
 
 export default function Onboarding() {
   const navigate = useNavigate();
   const createBusiness = useMutation(api.businesses.create);
-  const linkToBusiness = useMutation(api.customers.linkToBusiness);
+  const sendCustomerRequest = useMutation(api.connections.sendCustomerRequest);
 
   const [step, setStep] = useState<Step>("pick");
   const [businessName, setBusinessName] = useState("");
+  const [businessUsername, setBusinessUsername] = useState("");
   const [phone, setPhone] = useState("");
-  const [customerName, setCustomerName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedBusiness, setSelectedBusiness] = useState<{
     _id: string;
@@ -30,44 +36,31 @@ export default function Onboarding() {
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
 
-  const searchResults = useQuery(
+  const results = useQuery(
     api.businesses.searchByName,
-    searchQuery.length >= 1 ? { name: searchQuery } : "skip",
+    searchQuery.trim().length >= 1 ? { name: searchQuery.trim() } : "skip",
   );
 
   // --- Business owner path ---
   const handleCreateBusiness = async () => {
     if (!businessName.trim()) return;
+    const username = businessUsername.trim().toLowerCase();
+    if (username && !USERNAME_RE.test(username)) {
+      toast.error(t("usernameHint"));
+      return;
+    }
     setSaving(true);
     try {
       await createBusiness({
         name: businessName.trim(),
         phone: phone.trim() || undefined,
-      });
-      setDone(true);
-      setTimeout(() => navigate("/dashboard"), 1200);
-    } catch {
-      setSaving(false);
-      toast.error("Couldn't set up your business. Please try again.");
-    }
-  };
-
-  // --- Customer path ---
-  const handleLinkCustomer = async () => {
-    if (!selectedBusiness || !customerName.trim()) return;
-    setSaving(true);
-    try {
-      await linkToBusiness({
-        businessId: selectedBusiness._id as any,
-        name: customerName.trim(),
+        username: username || undefined,
       });
       setDone(true);
       setTimeout(() => navigate("/dashboard"), 1200);
     } catch (err) {
       setSaving(false);
-      toast.error(
-        err instanceof Error ? err.message : "Something went wrong. Please try again.",
-      );
+      toast.error(err instanceof Error ? err.message : t("errGeneric"));
     }
   };
 
@@ -81,11 +74,7 @@ export default function Onboarding() {
               <div className="h-16 w-16 rounded-full bg-success-light flex items-center justify-center">
                 <Check className="h-8 w-8 text-success" />
               </div>
-              <p className="text-xl font-semibold">
-                {step === "business" || step === "pick"
-                  ? "You're all set!"
-                  : "Connected!"}
-              </p>
+              <p className="text-xl font-semibold">You're all set!</p>
               <p className="text-muted-foreground text-center">
                 Taking you to your dashboard…
               </p>
@@ -98,9 +87,7 @@ export default function Onboarding() {
               <h1 className="text-2xl font-bold text-center mb-2">
                 Welcome to Soft Ledger!
               </h1>
-              <p className="text-muted-foreground text-center mb-8">
-                Tell us a bit about yourself so we can set things up.
-              </p>
+              <p className="text-muted-foreground text-center mb-8">{t("pickRole")}</p>
 
               <div className="space-y-3">
                 <button
@@ -111,9 +98,9 @@ export default function Onboarding() {
                     <Building2 className="h-5 w-5 text-primary" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold">I run a business</p>
+                    <p className="font-semibold">{t("iRunBusiness")}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      Track orders, payments, and customers
+                      {t("iRunBusinessDesc")}
                     </p>
                   </div>
                 </button>
@@ -126,9 +113,9 @@ export default function Onboarding() {
                     <ShoppingBag className="h-5 w-5 text-success" />
                   </div>
                   <div className="text-left">
-                    <p className="font-semibold">I'm a customer</p>
+                    <p className="font-semibold">{t("imCustomer")}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      See my orders and payments
+                      {t("imCustomerDesc")}
                     </p>
                   </div>
                 </button>
@@ -144,7 +131,7 @@ export default function Onboarding() {
                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                {t("back")}
               </button>
 
               <div className="flex justify-center mb-6">
@@ -154,7 +141,7 @@ export default function Onboarding() {
               </div>
 
               <h1 className="text-2xl font-bold text-center mb-2">
-                What&apos;s your business called?
+                What's your business called?
               </h1>
               <p className="text-muted-foreground text-center mb-8">
                 This is how your customers will see you in Soft Ledger.
@@ -163,7 +150,7 @@ export default function Onboarding() {
               <div className="space-y-4">
                 <div>
                   <label className="text-sm text-muted-foreground block mb-1.5 px-1">
-                    Business name *
+                    {t("businessNameLabel")} *
                   </label>
                   <input
                     type="text"
@@ -176,8 +163,25 @@ export default function Onboarding() {
                 </div>
 
                 <div>
+                  <label className="text-sm text-muted-foreground flex items-center gap-1 mb-1.5 px-1">
+                    <AtSign className="h-3.5 w-3.5" />
+                    {t("usernameLabel")} ({t("optional")})
+                  </label>
+                  <input
+                    type="text"
+                    value={businessUsername}
+                    onChange={(e) => setBusinessUsername(e.target.value.toLowerCase())}
+                    placeholder="e.g. sunrisedairy"
+                    className="w-full px-4 py-3.5 bg-card rounded-2xl border border-border/50 text-base outline-none focus:ring-2 focus:ring-primary/30 transition-all font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1 px-1">
+                    {t("usernameHint")}
+                  </p>
+                </div>
+
+                <div>
                   <label className="text-sm text-muted-foreground block mb-1.5 px-1">
-                    Phone (optional)
+                    {t("phoneLabel")}
                   </label>
                   <input
                     type="tel"
@@ -197,7 +201,7 @@ export default function Onboarding() {
                     <span className="animate-pulse">Setting things up…</span>
                   ) : (
                     <>
-                      Let&apos;s go
+                      Let's go
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </>
                   )}
@@ -214,7 +218,7 @@ export default function Onboarding() {
                 className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
               >
                 <ArrowLeft className="h-4 w-4" />
-                Back
+                {t("back")}
               </button>
 
               <div className="flex justify-center mb-6">
@@ -223,11 +227,9 @@ export default function Onboarding() {
                 </div>
               </div>
 
-              <h1 className="text-2xl font-bold text-center mb-2">
-                Find your business
-              </h1>
+              <h1 className="text-2xl font-bold text-center mb-2">{t("findVendor")}</h1>
               <p className="text-muted-foreground text-center mb-6">
-                Search for the business you&apos;re a customer of.
+                Search for the business you buy from.
               </p>
 
               {/* Search input */}
@@ -244,14 +246,19 @@ export default function Onboarding() {
               </div>
 
               {/* Results */}
-              {searchResults && searchResults.length > 0 && (
+              {results && results.length > 0 && (
                 <div className="bg-card rounded-2xl soft-shadow border border-border/20 overflow-hidden">
-                  {searchResults.map((biz) => (
+                  {results.map((biz: any) => (
                     <button
                       key={biz._id}
-                      onClick={() => {
-                        setSelectedBusiness(biz);
-                        setStep("customer-name");
+                      onClick={async () => {
+                        try {
+                          const name = await sendCustomerRequest({ businessId: biz._id as never });
+                          toast.success(`Request sent to ${name} — they must accept to connect.`);
+                          navigate("/dashboard");
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : t("errGeneric"));
+                        }
                       }}
                       className="w-full flex items-center gap-3 px-4 py-3.5 hover:bg-muted/50 transition-colors border-b border-border/10 last:border-0 text-left"
                     >
@@ -264,7 +271,7 @@ export default function Onboarding() {
                 </div>
               )}
 
-              {searchQuery.length >= 1 && searchResults && searchResults.length === 0 && (
+              {searchQuery.length >= 1 && results && results.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-6">
                   No businesses found matching &ldquo;{searchQuery}&rdquo;.
                   <br />
@@ -277,66 +284,6 @@ export default function Onboarding() {
                   Start typing to search
                 </p>
               )}
-            </>
-          )}
-
-          {/* Step: Customer — enter your name */}
-          {!done && step === "customer-name" && selectedBusiness && (
-            <>
-              <button
-                onClick={() => setStep("customer-search")}
-                className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Back
-              </button>
-
-              <div className="flex justify-center mb-6">
-                <div className="h-16 w-16 rounded-2xl bg-success-light flex items-center justify-center">
-                  <ShoppingBag className="h-8 w-8 text-success" />
-                </div>
-              </div>
-
-              <h1 className="text-2xl font-bold text-center mb-1">
-                Connecting to
-              </h1>
-              <h2 className="text-xl font-bold text-primary text-center mb-2">
-                {selectedBusiness.name}
-              </h2>
-              <p className="text-muted-foreground text-center mb-8">
-                What name should they know you by?
-              </p>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-muted-foreground block mb-1.5 px-1">
-                    Your name *
-                  </label>
-                  <input
-                    type="text"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="e.g. Ronak, Priya"
-                    className="w-full px-4 py-3.5 bg-card rounded-2xl border border-border/50 text-base outline-none focus:ring-2 focus:ring-primary/30 transition-all"
-                    autoFocus
-                  />
-                </div>
-
-                <Button
-                  onClick={handleLinkCustomer}
-                  disabled={saving || !customerName.trim()}
-                  className="w-full h-14 rounded-2xl text-base font-semibold bg-success hover:bg-success/90 active:scale-[0.98] transition-all text-white mt-4"
-                >
-                  {saving ? (
-                    <span className="animate-pulse">Connecting…</span>
-                  ) : (
-                    <>
-                      Connect and get started
-                      <ArrowRight className="ml-2 h-5 w-5" />
-                    </>
-                  )}
-                </Button>
-              </div>
             </>
           )}
         </div>
